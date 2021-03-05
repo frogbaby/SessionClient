@@ -33,7 +33,7 @@ public class DeliverySession {
 
     }
     private int DeliverySessionId;
-    @XmlAttribute(name="Action")
+
     private ActionType Action;
 
     @XmlElements(value = {
