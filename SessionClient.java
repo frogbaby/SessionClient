@@ -16,10 +16,14 @@ public class SessionClient {
             cachedThreadPool.execute(new Runnable() {
                 public void run() {
                     utils.execute(2);
+
                 }
             });
+        }
+        while (true) {
 
         }
+
     }
 
     @Test

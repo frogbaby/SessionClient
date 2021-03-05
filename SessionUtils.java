@@ -3,8 +3,9 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.util.EntityUtils;
-import org.apache.log4j.Logger;
+import org.apache.http.impl.client.HttpClients;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -17,11 +18,11 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class SessionUtils {
-    private static Logger logger = Logger.getLogger(SessionUtils.class);
+    private final static Logger logger = LoggerFactory.getLogger(SessionUtils.class);
     private DeliverySession session;
-    //private static int aliveTime = 2;
     private static String orignUrl = "http://127.0.0.1:8081/nbi/deliverysession";
 
+    // send post request and get response from server
     public synchronized String doPost(String url, DeliverySession session) {
         String xml = jaxbObjectToXml(session);
         CloseableHttpClient client = null;
@@ -30,14 +31,13 @@ public class SessionUtils {
         try {
             HttpPost httpPost = new HttpPost(url);
             httpPost.setHeader("Content-Type", "text/xml; charset=UTF-8");
-            //client = HttpClients.createDefault();
+            client = HttpClients.createDefault();
             HttpEntity entityParams = new StringEntity(xml,"utf-8");
-            //System.out.println(entityParams);
             httpPost.setEntity(entityParams);
-            //client = HttpClients.createDefault();
             resp = client.execute(httpPost);
-            resultMsg = EntityUtils.toString(resp.getEntity(),"utf-8");
-
+            if (resp.getStatusLine().getStatusCode() == 200) {
+                resultMsg = "200 OK";
+            }
         } catch (Exception e){
             e.printStackTrace();
         } finally {
@@ -52,11 +52,7 @@ public class SessionUtils {
                 e.printStackTrace();
             }
             return resultMsg;
-
         }
-
-
-
     }
 
     // convert java object to xml
@@ -65,15 +61,10 @@ public class SessionUtils {
         try {
             //Create JAXB Context
             JAXBContext jaxbContext = JAXBContext.newInstance(DeliverySession.class);
-            //Create Marshaller
             Marshaller jaxbMarshaller = jaxbContext.createMarshaller();
-            //Required formatting??
             jaxbMarshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
-            //Print XML String to Console
             StringWriter sw = new StringWriter();
-            //Write XML to StringWriter
             jaxbMarshaller.marshal(session, sw);
-            //Verify XML Content
             xmlContent = sw.toString();
         } catch (JAXBException e) {
             e.printStackTrace();
@@ -89,9 +80,8 @@ public class SessionUtils {
         Random rand = new Random();
         int randNum = rand.nextInt(100);
         final int startTime = (int) (new Date().getTime()/1000);
-        final int sessionId = getSessionId(startTime, randNum);
+        final int sessionId = randNum;
         final String curUrl = orignUrl+"?id="+String.valueOf(sessionId);
-
 
         // get end time
         final int endTime = startTime+aliveTime;
@@ -99,7 +89,7 @@ public class SessionUtils {
         final String rep1 = doPost(curUrl, session);
         logger.info("Current sessionId: " + sessionId + "\n" + "Send time: " + startTime + "\n"
                 + "Request body: " + getXml(session) + "\n" + "Response: " + rep1);
-        //System.out.println(rep1);
+        System.out.println("send start request!");
 
         // end session
         session = new DeliverySession(sessionId, DeliverySession.ActionType.Stop, startTime, endTime);
@@ -109,19 +99,11 @@ public class SessionUtils {
                 String rep2 = doPost(curUrl, session);
                 logger.info("Current sessionId: " + sessionId + "\n" + "Send time: " + endTime + "\n"
                         + "Request body: " + getXml(session) + "\n" + "Response: " + rep2);
-                //System.out.println(rep2);
-
+                System.out.println("sending end request!");
             }
         }, aliveTime*1000 );
-
     }
 
-    private int getSessionId(int startTime, int randNum) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(startTime).append(randNum);
-        int ans = Integer.valueOf(sb.toString());
-        return ans;
-    }
 
     private String getXml (DeliverySession session) {
         return jaxbObjectToXml(session);
