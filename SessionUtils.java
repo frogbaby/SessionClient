@@ -23,7 +23,7 @@ public class SessionUtils {
     private static String orignUrl = "http://127.0.0.1:8081/nbi/deliverysession";
 
     // send post request and get response from server
-    public synchronized String doPost(String url, DeliverySession session) {
+    public String doPost(String url, DeliverySession session) {
         String xml = jaxbObjectToXml(session);
         CloseableHttpClient client = null;
         CloseableHttpResponse resp = null;
@@ -74,32 +74,34 @@ public class SessionUtils {
     }
 
     // execute sending request
-    public void execute(int aliveTime) {
+    public synchronized void execute(int aliveTime) {
         // start session
         // get sessionId && startTime
         Random rand = new Random();
-        int randNum = rand.nextInt(100);
-        final int startTime = (int) (new Date().getTime()/1000);
+        int randNum = rand.nextInt(1000);
+        final int startTime = (int) (System.currentTimeMillis());
         final int sessionId = randNum;
         final String curUrl = orignUrl+"?id="+String.valueOf(sessionId);
 
         // get end time
-        final int endTime = startTime+aliveTime;
+        final int endTime = startTime+aliveTime*1000;
         session = new DeliverySession(sessionId, DeliverySession.ActionType.Start, startTime, endTime);
+        String startXmlContent = getXml(session);
         final String rep1 = doPost(curUrl, session);
         logger.info("Current sessionId: " + sessionId + "\n" + "Send time: " + startTime + "\n"
-                + "Request body: " + getXml(session) + "\n" + "Response: " + rep1);
-        System.out.println("send start request!");
+                 + "url: " + curUrl + "\n" + "Request body: "
+                + startXmlContent + "Response: " + rep1);
 
         // end session
         session = new DeliverySession(sessionId, DeliverySession.ActionType.Stop, startTime, endTime);
+        String endXmlContent = getXml(session);
         Timer timer = new Timer();
         timer.schedule(new TimerTask() {
             public void run() {
                 String rep2 = doPost(curUrl, session);
                 logger.info("Current sessionId: " + sessionId + "\n" + "Send time: " + endTime + "\n"
-                        + "Request body: " + getXml(session) + "\n" + "Response: " + rep2);
-                System.out.println("sending end request!");
+                         + "url: " + curUrl + "\n" + "Request body: "
+                        + endXmlContent + "Response: " + rep2);
             }
         }, aliveTime*1000 );
     }
@@ -110,4 +112,3 @@ public class SessionUtils {
     }
 
 }
-
